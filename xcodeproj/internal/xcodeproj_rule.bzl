@@ -1076,7 +1076,7 @@ def _write_spec(
     project_spec_json = json.encode(spec_dto)
 
     # 8 shards max (lowest number of threads on a Mac)
-    max_shard_count = 1 if is_fixture else 8
+    max_shard_count = 1 if is_fixture else 16
 
     target_count = len(target_dtos)
     shard_count = min(target_count, max_shard_count)
