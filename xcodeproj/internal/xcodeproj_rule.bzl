@@ -584,6 +584,7 @@ actual targets: {}
     lldb_contexts_dtos = {}
     target_dependencies = {}
     target_link_params = {}
+    target_opt_files = {}
     for index, xcode_target in enumerate(focused_targets.values()):
         transitive_dependencies = {
             id: None
@@ -612,7 +613,7 @@ actual targets: {}
                     ),
                 )
 
-        dto, replaced_dependencies, link_params = xcode_targets.to_dto(
+        dto, replaced_dependencies, link_params, opt_files = xcode_targets.to_dto(
             ctx = ctx,
             xcode_target = xcode_target,
             label = labels[xcode_target.id],
@@ -636,7 +637,11 @@ actual targets: {}
             replaced_dependencies,
         )
         if link_params:
+            print("type([link_params]) ", [link_params])
             target_link_params[xcode_target.id] = depset([link_params])
+        if opt_files:
+            print("type(opt_files) ", opt_files)
+            target_opt_files[xcode_target.id] = depset(opt_files)
 
     for xcode_target in focused_targets.values():
         (
@@ -645,10 +650,15 @@ actual targets: {}
         ) = target_dependencies[xcode_target.id]
 
         transitive_link_params = []
+        transitive_opt_files = []
 
         link_params = target_link_params.get(xcode_target.id)
         if link_params:
             transitive_link_params.append(link_params)
+
+        opt_files = target_opt_files.get(xcode_target.id)
+        if opt_files:
+            transitive_opt_files.append(opt_files)
 
         for id in transitive_dependencies:
             merge = target_merges.get(id)
@@ -659,6 +669,10 @@ actual targets: {}
             link_params = target_link_params.get(id)
             if link_params:
                 transitive_link_params.append(link_params)
+
+            opt_files = target_opt_files.get(id)
+            if opt_files:
+                transitive_opt_files.append(opt_files)
 
         compiling_output_group_name = (
             xcode_target.inputs.compiling_output_group_name
@@ -726,6 +740,10 @@ actual targets: {}
             if link_params:
                 transitive_link_params.append(link_params)
 
+            opt_files = target_opt_files.get(id, None)
+            if opt_files:
+                transitive_opt_files.append(opt_files)
+
             dep_target = focused_targets[id]
 
             dep_compiling_output_group_name = (
@@ -763,9 +781,14 @@ actual targets: {}
             if linking_output_group_name:
                 additional_linking_files.extend(transitive_link_params)
             if bwb_linking_output_group_name:
-                additional_outputs[bwb_linking_output_group_name] = (
-                    transitive_link_params
-                )
+                if not transitive_opt_files:
+                    additional_outputs[bwb_linking_output_group_name] = (
+                        transitive_link_params
+                    )
+                else:
+                    additional_outputs[bwb_linking_output_group_name] = (
+                        transitive_link_params + transitive_opt_files
+                    )
 
         if compiling_output_group_name:
             set_if_true(
@@ -1041,7 +1064,6 @@ def _write_spec(
     target_shards = []
     for shard in range(shard_count):
         sharded_targets = flattened_targets[shard * shard_size:(shard + 1) * shard_size]
-
         targets_json = json.encode(sharded_targets)
         targets_output = ctx.actions.declare_file(
             "{}-targets_spec.{}.json".format(ctx.attr.name, shard),
@@ -1640,6 +1662,9 @@ done
             index_import = ctx.executable._index_import,
         )
         all_targets_files = [output_files_output_groups["all_b"]]
+        for key in output_files_output_groups.keys():
+            if "SCCamera" in key:
+                print("output_files_output_groups key : ", key)
 
     return [
         DefaultInfo(
