@@ -73,6 +73,9 @@ else
     output_groups+=("${labels_and_output_groups[i+1]}")
   done
 
+  echo "print out the command here!"
+  echo "$CALCULATE_OUTPUT_GROUPS_SCRIPT $ACTION $XCODE_VERSION_ACTUAL $non_preview_objroot $base_objroot $scheme_target_ids_file $output_group_prefixes"
+
   if [ "${#output_groups[@]}" -eq 1 ]; then
     echo "BazelDependencies invoked without any output groups set." \
       "Exiting early."
